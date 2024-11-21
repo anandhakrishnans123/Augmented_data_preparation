@@ -23,7 +23,7 @@ if uploaded_file is not None:
     sampling_value = {}  # Store sampling values for columns
     
     if selected_sheets:
-        
+        st.markdown("### Specify the number of synthetic rows for each sheet:")
         for sheet in selected_sheets:
             # Display small title for each sheet
             st.subheader(f"Settings for Sheet: {sheet}")
@@ -56,6 +56,15 @@ if uploaded_file is not None:
                     sampling_value[sheet] = input_values.split(",")  # Split values by comma
                 else:
                     sampling_value[sheet] = []
+
+                # Adding dynamic values to the dropdown
+                new_value = st.text_input(f"Add a new value to '{selected_column}'", key=f"new_value_{sheet}")
+                if new_value and st.button(f"Add '{new_value}' to the list", key=f"add_value_{sheet}"):
+                    if new_value not in sampling_value[sheet]:
+                        sampling_value[sheet].append(new_value)
+                        st.success(f"'{new_value}' added to the list.")
+                    else:
+                        st.warning(f"'{new_value}' already exists in the list.")
 
             else:
                 # Option 2: Use multiselect for other columns
