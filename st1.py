@@ -80,12 +80,12 @@ if uploaded_file is not None:
                     )
                     column_numeric_ranges[col] = (min_value, max_value)
 
+                # Add markdown for separation between columns
+                st.markdown("---")  # Adds a horizontal line for separation
+
             sampling_values[sheet] = column_values
             data_type_choices[sheet] = column_data_types
             numeric_ranges[sheet] = column_numeric_ranges
-
-            # Add separation between each sheet's settings
-            st.markdown("___")  # Adds a horizontal line for separation
 
     if st.button("Generate and Save Augmented Data"):
         # Dictionary to hold the augmented data for all sheets
@@ -173,7 +173,7 @@ if uploaded_file is not None:
             st.write(augmented_data.head())  # Display the first few rows of augmented data
 
             # Add a line break after each sheet's preview
-            st.markdown("___")  # Adds a horizontal line
+            st.markdown("---")
 
         # Save all sheets with selected sheets overwritten by augmented data
         output = BytesIO()
