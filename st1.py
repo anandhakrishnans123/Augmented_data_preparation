@@ -27,6 +27,7 @@ if uploaded_file is not None:
     if selected_sheets:
         
         for sheet in selected_sheets:
+            st.markdown("---")
             # Display small title for each sheet
             st.subheader(f"Settings for Sheet: {sheet}")
 
