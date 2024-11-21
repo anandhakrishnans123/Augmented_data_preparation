@@ -26,7 +26,7 @@ if uploaded_file is not None:
         st.markdown("### Specify the number of synthetic rows for each sheet:")
         for sheet in selected_sheets:
             # Display small title for each sheet
-            
+            st.subheader(f"Settings for Sheet: {sheet}")
 
             rows_to_generate[sheet] = st.number_input(
                 f"Number of synthetic rows for sheet '{sheet}'",
