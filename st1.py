@@ -45,26 +45,27 @@ if uploaded_file is not None:
             )
             column_for_sampling[sheet] = selected_column
 
-            # Allow user to input multiple values for sampling
-            # Option 1: Using text area for comma-separated values
+            # Allow user to input custom values (beyond existing) for sampling
             if selected_column == "Department":  # Specific case for "Department" column
-                input_values = st.text_area(
-                    f"Enter comma-separated sampling values for column '{selected_column}' in sheet '{sheet}'",
+                # Get existing unique values
+                existing_values = pd.read_excel(uploaded_file, sheet_name=sheet)[selected_column].dropna().unique().tolist()
+
+                # Allow user to input new values beyond the existing ones
+                new_values = st.text_area(
+                    f"Enter new comma-separated values to add for column '{selected_column}' in sheet '{sheet}'",
                     key=f"value_{sheet}"
                 )
-                if input_values:
-                    sampling_value[sheet] = input_values.split(",")  # Split values by comma
-                else:
-                    sampling_value[sheet] = []
 
-                # Adding dynamic values to the dropdown
-                new_value = st.text_input(f"Add a new value to '{selected_column}'", key=f"new_value_{sheet}")
-                if new_value and st.button(f"Add '{new_value}' to the list", key=f"add_value_{sheet}"):
-                    if new_value not in sampling_value[sheet]:
-                        sampling_value[sheet].append(new_value)
-                        st.success(f"'{new_value}' added to the list.")
-                    else:
-                        st.warning(f"'{new_value}' already exists in the list.")
+                # Split input into a list of new values
+                if new_values:
+                    new_values_list = new_values.split(",")
+                    new_values_list = [value.strip() for value in new_values_list]  # Clean extra spaces
+                else:
+                    new_values_list = []
+
+                # Combine existing and new values
+                all_values = list(set(existing_values + new_values_list))  # Remove duplicates
+                sampling_value[sheet] = all_values
 
             else:
                 # Option 2: Use multiselect for other columns
