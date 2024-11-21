@@ -79,7 +79,7 @@ if uploaded_file is not None:
                         key=f"max_{sheet}_{col}"
                     )
                     column_numeric_ranges[col] = (min_value, max_value)
-
+            st.markdown("---")
             sampling_values[sheet] = column_values
             data_type_choices[sheet] = column_data_types
             numeric_ranges[sheet] = column_numeric_ranges
