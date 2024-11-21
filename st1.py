@@ -25,7 +25,7 @@ if uploaded_file is not None:
     numeric_ranges = {}  # Store numeric range for columns
 
     if selected_sheets:
-        
+        st.markdown("### Specify the number of synthetic rows for each sheet:")
         for sheet in selected_sheets:
             # Display small title for each sheet
             st.subheader(f"Settings for Sheet: {sheet}")
@@ -45,7 +45,6 @@ if uploaded_file is not None:
                 columns,
                 key=f"columns_{sheet}"
             )
-            st.markdown("---")
             columns_for_sampling[sheet] = selected_columns
 
             # Allow user to input a value for each selected column for sampling
@@ -53,20 +52,21 @@ if uploaded_file is not None:
             column_data_types = {}
             column_numeric_ranges = {}
             for col in selected_columns:
-                value = st.text_input(
-                    f"Enter the sampling value for column '{col}' in sheet '{sheet}'",
-                    key=f"value_{sheet}_{col}"
-                )
-                column_values[col] = value
-                
-                # Allow user to select the data type for each column
+                # First: Allow user to select the data type for each column
                 data_type = st.selectbox(
                     f"Select the data type for column '{col}' in sheet '{sheet}'",
                     options=["Numeric", "Categorical", "Datetime"],
                     key=f"data_type_{sheet}_{col}"
                 )
                 column_data_types[col] = data_type
-                
+
+                # Then: Allow user to enter the sampling value for the column
+                value = st.text_input(
+                    f"Enter the sampling value for column '{col}' in sheet '{sheet}'",
+                    key=f"value_{sheet}_{col}"
+                )
+                column_values[col] = value
+
                 # For numeric data type, allow user to specify a range
                 if data_type == "Numeric":
                     min_value = st.number_input(
