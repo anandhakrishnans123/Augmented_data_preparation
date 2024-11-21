@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from io import BytesIO
+from scipy import stats
 
 # Streamlit UI for synthetic data generation
 st.title("Synthetic Data Generator")
@@ -25,7 +26,7 @@ if uploaded_file is not None:
     numeric_ranges = {}  # Store numeric range for columns
 
     if selected_sheets:
-        
+        st.markdown("### Specify the number of synthetic rows for each sheet:")
         for sheet in selected_sheets:
             # Display small title for each sheet
             st.subheader(f"Settings for Sheet: {sheet}")
@@ -126,25 +127,28 @@ if uploaded_file is not None:
                         if value is not None:
                             synthetic_data[column] = [pd.to_datetime(value)] * num_synthetic_rows
 
-                elif pd.api.types.is_numeric_dtype(data_without_header[column]):  # Numeric columns
-                    value = sampling_values[sheet_name].get(column, None)
-                    if value is not None:
-                        min_value, max_value = numeric_ranges[sheet_name].get(column, (0, 100))
-                        synthetic_data[column] = np.random.uniform(min_value, max_value, num_synthetic_rows).tolist()
-                elif (
-                    isinstance(data_without_header[column].dtype, pd.CategoricalDtype)
-                    or data_without_header[column].dtype == "object"
-                ):  # Categorical or string columns
-                    value = sampling_values[sheet_name].get(column, None)
-                    if value is not None:
-                        unique_values = value.split(',')
-                        synthetic_data[column] = [np.random.choice(unique_values) for _ in range(num_synthetic_rows)]
-                elif pd.api.types.is_datetime64_any_dtype(data_without_header[column]):  # Datetime columns
-                    value = sampling_values[sheet_name].get(column, None)
-                    if value is not None:
-                        synthetic_data[column] = [pd.to_datetime(value)] * num_synthetic_rows
                 else:
-                    synthetic_data[column] = [None] * num_synthetic_rows  # Unsupported columns
+                    # Handle unselected columns based on their existing distribution
+                    if pd.api.types.is_numeric_dtype(data_without_header[column]):
+                        # Numeric column: generate based on mean and std deviation of the column
+                        mean = data_without_header[column].mean()
+                        std_dev = data_without_header[column].std()
+                        synthetic_data[column] = np.random.normal(mean, std_dev, num_synthetic_rows).tolist()
+
+                    elif pd.api.types.is_categorical_dtype(data_without_header[column]) or data_without_header[column].dtype == "object":
+                        # Categorical column: generate based on frequency of categories
+                        category_counts = data_without_header[column].value_counts(normalize=True)
+                        categories = category_counts.index.tolist()
+                        probabilities = category_counts.values.tolist()
+                        synthetic_data[column] = np.random.choice(categories, num_synthetic_rows, p=probabilities).tolist()
+
+                    elif pd.api.types.is_datetime64_any_dtype(data_without_header[column]):
+                        # Datetime column: generate based on the range of existing dates
+                        min_date = data_without_header[column].min()
+                        max_date = data_without_header[column].max()
+                        time_range = (max_date - min_date).days
+                        random_days = np.random.randint(0, time_range, num_synthetic_rows)
+                        synthetic_data[column] = [min_date + pd.Timedelta(days=days) for days in random_days]
 
             # Convert synthetic data to DataFrame
             synthetic_data_df = pd.DataFrame(synthetic_data)
