@@ -19,11 +19,11 @@ if uploaded_file is not None:
 
     # Dictionary to store the number of rows for each selected sheet
     rows_to_generate = {}
-    column_for_sampling = {}  # Store columns for sampling
-    sampling_value = {}  # Store sampling values for columns
+    columns_for_sampling = {}  # Store multiple columns for sampling
+    sampling_values = {}  # Store sampling values for columns
     
     if selected_sheets:
-        
+        st.markdown("### Specify the number of synthetic rows for each sheet:")
         for sheet in selected_sheets:
             # Display small title for each sheet
             st.subheader(f"Settings for Sheet: {sheet}")
@@ -36,45 +36,24 @@ if uploaded_file is not None:
                 key=f"rows_{sheet}",
             )
 
-            # Allow user to select a specific column for sampling
+            # Allow user to select multiple columns for sampling
             columns = pd.read_excel(uploaded_file, sheet_name=sheet).columns
-            selected_column = st.selectbox(
-                f"Select a column to sample data for sheet '{sheet}'",
+            selected_columns = st.multiselect(
+                f"Select columns to sample data for sheet '{sheet}'",
                 columns,
-                key=f"column_{sheet}"
+                key=f"columns_{sheet}"
             )
-            column_for_sampling[sheet] = selected_column
+            columns_for_sampling[sheet] = selected_columns
 
-            # Allow user to input custom values (beyond existing) for sampling
-            if selected_column == "Department":  # Specific case for "Department" column
-                # Get existing unique values
-                existing_values = pd.read_excel(uploaded_file, sheet_name=sheet)[selected_column].dropna().unique().tolist()
-
-                # Allow user to input new values beyond the existing ones
-                new_values = st.text_area(
-                    f"Enter new comma-separated values to add for column '{selected_column}' in sheet '{sheet}'",
-                    key=f"value_{sheet}"
+            # Allow user to input a value for each selected column for sampling
+            column_values = {}
+            for col in selected_columns:
+                value = st.text_input(
+                    f"Enter the sampling value for column '{col}' in sheet '{sheet}'",
+                    key=f"value_{sheet}_{col}"
                 )
-
-                # Split input into a list of new values
-                if new_values:
-                    new_values_list = new_values.split(",")
-                    new_values_list = [value.strip() for value in new_values_list]  # Clean extra spaces
-                else:
-                    new_values_list = []
-
-                # Combine existing and new values
-                all_values = list(set(existing_values + new_values_list))  # Remove duplicates
-                sampling_value[sheet] = all_values
-
-            else:
-                # Option 2: Use multiselect for other columns
-                input_values = st.multiselect(
-                    f"Select sampling values for column '{selected_column}' in sheet '{sheet}'",
-                    options=pd.read_excel(uploaded_file, sheet_name=sheet)[selected_column].dropna().unique(),
-                    key=f"multi_value_{sheet}"
-                )
-                sampling_value[sheet] = input_values
+                column_values[col] = value
+            sampling_values[sheet] = column_values
 
             # Add separation between each sheet's settings
             st.markdown("---")  # Adds a horizontal line
@@ -98,12 +77,9 @@ if uploaded_file is not None:
             num_synthetic_rows = rows_to_generate[sheet_name]
 
             for column in data_without_header.columns:
-                if column == column_for_sampling[sheet_name]:
-                    # Use the sampling values for the selected column
-                    if len(sampling_value[sheet_name]) > 0:
-                        synthetic_data[column] = np.random.choice(sampling_value[sheet_name], size=num_synthetic_rows)
-                    else:
-                        synthetic_data[column] = [None] * num_synthetic_rows
+                if column in columns_for_sampling[sheet_name]:
+                    # Use the sampling value for the selected column
+                    synthetic_data[column] = [sampling_values[sheet_name][column]] * num_synthetic_rows
                 elif pd.api.types.is_numeric_dtype(data_without_header[column]):  # Numeric columns
                     synthetic_data[column] = np.random.normal(
                         loc=data_without_header[column].mean(),
