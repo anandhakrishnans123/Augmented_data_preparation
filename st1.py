@@ -55,7 +55,8 @@ if uploaded_file is not None:
                 # First: Allow user to select the data type for each column
                 data_type = st.selectbox(
                     f"Select the data type for column '{col}' in sheet '{sheet}'",
-                    options=["Numeric", "Categorical", "Datetime"],
+                    options=["Select", "Numerical", "Categorical", "Date"],
+                    index=0,  # Default is 'Select'
                     key=f"data_type_{sheet}_{col}"
                 )
                 column_data_types[col] = data_type
@@ -68,7 +69,7 @@ if uploaded_file is not None:
                 column_values[col] = value
 
                 # For numeric data type, allow user to specify a range
-                if data_type == "Numeric":
+                if data_type == "Numerical":
                     min_value = st.number_input(
                         f"Enter the minimum value for column '{col}' in sheet '{sheet}'",
                         value=float(value) if value else 0.0,
@@ -109,10 +110,10 @@ if uploaded_file is not None:
             for column in data_without_header.columns:
                 if column in columns_for_sampling[sheet_name]:
                     # Use the provided value for the selected column
-                    data_type = data_type_choices[sheet_name].get(column, "Numeric")
+                    data_type = data_type_choices[sheet_name].get(column, "Select")
                     value = sampling_values[sheet_name].get(column, None)
 
-                    if data_type == "Numeric":
+                    if data_type == "Numerical":
                         # If a numeric range is provided, generate values within the range
                         min_value, max_value = numeric_ranges[sheet_name].get(column, (0, 100))
                         synthetic_data[column] = np.random.uniform(min_value, max_value, num_synthetic_rows).tolist()
@@ -122,8 +123,8 @@ if uploaded_file is not None:
                         if value is not None:
                             unique_values = value.split(',')
                             synthetic_data[column] = [np.random.choice(unique_values) for _ in range(num_synthetic_rows)]
-                    elif data_type == "Datetime":
-                        # If the user has provided a datetime value (single value or a range)
+                    elif data_type == "Date":
+                        # If the user has provided a date value (single value or a range)
                         if value is not None:
                             synthetic_data[column] = [pd.to_datetime(value)] * num_synthetic_rows
 
