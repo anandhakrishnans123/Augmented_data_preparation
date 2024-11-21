@@ -19,6 +19,9 @@ if uploaded_file is not None:
 
     # Dictionary to store the number of rows for each selected sheet
     rows_to_generate = {}
+    column_for_sampling = {}  # Store columns for sampling
+    sampling_value = {}  # Store sampling values for columns
+    
     if selected_sheets:
         st.markdown("### Specify the number of synthetic rows for each sheet:")
         for sheet in selected_sheets:
@@ -29,6 +32,22 @@ if uploaded_file is not None:
                 value=10,
                 key=f"rows_{sheet}",
             )
+
+            # Allow user to select a specific column for sampling
+            columns = pd.read_excel(uploaded_file, sheet_name=sheet).columns
+            selected_column = st.selectbox(
+                f"Select a column to sample data for sheet '{sheet}'",
+                columns,
+                key=f"column_{sheet}"
+            )
+            column_for_sampling[sheet] = selected_column
+
+            # Allow user to input a value for the selected column for sampling
+            value = st.text_input(
+                f"Enter the sampling value for column '{selected_column}' in sheet '{sheet}'",
+                key=f"value_{sheet}"
+            )
+            sampling_value[sheet] = value
 
     if st.button("Generate and Save Augmented Data"):
         # Dictionary to hold the augmented data for all sheets
@@ -46,7 +65,10 @@ if uploaded_file is not None:
             num_synthetic_rows = rows_to_generate[sheet_name]
 
             for column in data_without_header.columns:
-                if pd.api.types.is_numeric_dtype(data_without_header[column]):  # Numeric columns
+                if column == column_for_sampling[sheet_name]:
+                    # Use the sampling value for the selected column
+                    synthetic_data[column] = [sampling_value[sheet_name]] * num_synthetic_rows
+                elif pd.api.types.is_numeric_dtype(data_without_header[column]):  # Numeric columns
                     synthetic_data[column] = np.random.normal(
                         loc=data_without_header[column].mean(),
                         scale=data_without_header[column].std(),
