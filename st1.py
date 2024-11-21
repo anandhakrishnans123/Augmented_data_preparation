@@ -49,6 +49,9 @@ if uploaded_file is not None:
             )
             sampling_value[sheet] = value
 
+            # Add separation between each sheet's settings
+            st.markdown("---")  # Adds a horizontal line
+
     if st.button("Generate and Save Augmented Data"):
         # Dictionary to hold the augmented data for all sheets
         all_augmented_data = {}
@@ -114,6 +117,13 @@ if uploaded_file is not None:
             # Combine original and synthetic data
             augmented_data = pd.concat([original_data, synthetic_data_df], ignore_index=True)
             all_augmented_data[sheet_name] = augmented_data
+
+            # Add separation after processing each sheet
+            st.markdown(f"### Augmented Data for Sheet: {sheet_name}")
+            st.write(augmented_data.head())  # Display the first few rows of augmented data
+
+            # Add a line break after each sheet's preview
+            st.markdown("---")
 
         # Save all sheets with selected sheets overwritten by augmented data
         output = BytesIO()
