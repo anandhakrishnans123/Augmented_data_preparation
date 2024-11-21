@@ -61,27 +61,28 @@ if uploaded_file is not None:
                 )
                 column_data_types[col] = data_type
 
-                # Only show the sampling value field if a data type is selected and it's not 'Numerical'
-                if data_type != "Select" and data_type != "Numerical":
-                    value = st.text_input(
-                        f"Enter the sampling value for column '{col}' in sheet '{sheet}'",
-                        key=f"value_{sheet}_{col}"
-                    )
-                    column_values[col] = value
-
-                    # For numeric data type, allow user to specify a range
+                # Only show the sampling value field if a data type is selected
+                if data_type != "Select":
                     if data_type == "Numerical":
+                        # Only show min and max for numerical data type
                         min_value = st.number_input(
                             f"Enter the minimum value for column '{col}' in sheet '{sheet}'",
-                            value=float(value) if value else 0.0,
+                            value=0.0,
                             key=f"min_{sheet}_{col}"
                         )
                         max_value = st.number_input(
                             f"Enter the maximum value for column '{col}' in sheet '{sheet}'",
-                            value=float(value) if value else 100.0,
+                            value=100.0,
                             key=f"max_{sheet}_{col}"
                         )
                         column_numeric_ranges[col] = (min_value, max_value)
+                    else:
+                        # For categorical or date columns, show the sampling value input field
+                        value = st.text_input(
+                            f"Enter the sampling value for column '{col}' in sheet '{sheet}'",
+                            key=f"value_{sheet}_{col}"
+                        )
+                        column_values[col] = value
 
                 # Add markdown for separation between columns
                 st.markdown("---")  # Adds a horizontal line for separation
@@ -197,4 +198,4 @@ if uploaded_file is not None:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
 
-        st.success("Augmented data has been saved and is ready for download.")
+        st.success("Augmented data has been saved and is ready for download!")
