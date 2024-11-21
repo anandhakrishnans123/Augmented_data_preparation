@@ -147,7 +147,7 @@ if uploaded_file is not None:
                             probabilities = category_counts.values.tolist()
                             synthetic_data[column] = np.random.choice(categories, num_synthetic_rows, p=probabilities).tolist()
                         else:
-                            synthetic_data[column] = ["Unknown"] * num_synthetic_rows  # Default if column is empty
+                            synthetic_data[column] = [None] * num_synthetic_rows  # Use None for empty categorical columns
 
                     elif pd.api.types.is_datetime64_any_dtype(data_without_header[column]):
                         # Datetime column: generate based on the range of existing dates
