@@ -53,6 +53,7 @@ if uploaded_file is not None:
             column_data_types = {}
             column_numeric_ranges = {}
             for col in selected_columns:
+                st.subheader(f"Column settings for: {col}")
                 # First: Allow user to select the data type for each column
                 data_type = st.selectbox(
                     f"Select the data type for column '{col}' in sheet '{sheet}'",
