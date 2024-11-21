@@ -22,6 +22,7 @@ if uploaded_file is not None:
     columns_for_sampling = {}  # Store multiple columns for sampling
     sampling_values = {}  # Store sampling values for columns
     data_type_choices = {}  # Store data type choices for columns
+    numeric_ranges = {}  # Store numeric range for columns
 
     if selected_sheets:
         st.markdown("### Specify the number of synthetic rows for each sheet:")
@@ -49,6 +50,7 @@ if uploaded_file is not None:
             # Allow user to input a value for each selected column for sampling
             column_values = {}
             column_data_types = {}
+            column_numeric_ranges = {}
             for col in selected_columns:
                 value = st.text_input(
                     f"Enter the sampling value for column '{col}' in sheet '{sheet}'",
@@ -63,8 +65,24 @@ if uploaded_file is not None:
                     key=f"data_type_{sheet}_{col}"
                 )
                 column_data_types[col] = data_type
+                
+                # For numeric data type, allow user to specify a range
+                if data_type == "Numeric":
+                    min_value = st.number_input(
+                        f"Enter the minimum value for column '{col}' in sheet '{sheet}'",
+                        value=float(value) if value else 0.0,
+                        key=f"min_{sheet}_{col}"
+                    )
+                    max_value = st.number_input(
+                        f"Enter the maximum value for column '{col}' in sheet '{sheet}'",
+                        value=float(value) if value else 100.0,
+                        key=f"max_{sheet}_{col}"
+                    )
+                    column_numeric_ranges[col] = (min_value, max_value)
+
             sampling_values[sheet] = column_values
             data_type_choices[sheet] = column_data_types
+            numeric_ranges[sheet] = column_numeric_ranges
 
             # Add separation between each sheet's settings
             st.markdown("---")  # Adds a horizontal line
@@ -89,69 +107,42 @@ if uploaded_file is not None:
 
             for column in data_without_header.columns:
                 if column in columns_for_sampling[sheet_name]:
-                    # Use the sampling value for the selected column
+                    # Use the provided value for the selected column
                     data_type = data_type_choices[sheet_name].get(column, "Numeric")
+                    value = sampling_values[sheet_name].get(column, None)
+
                     if data_type == "Numeric":
-                        # Generate numeric data if selected
-                        synthetic_data[column] = np.random.normal(
-                            loc=0,  # You could use the column's mean if desired
-                            scale=1,  # You could use the column's standard deviation
-                            size=num_synthetic_rows,
-                        )
+                        # If a numeric range is provided, generate values within the range
+                        min_value, max_value = numeric_ranges[sheet_name].get(column, (0, 100))
+                        synthetic_data[column] = np.random.uniform(min_value, max_value, num_synthetic_rows).tolist()
+
                     elif data_type == "Categorical":
-                        # Generate categorical data if selected
-                        if column in sampling_values[sheet_name]:
-                            unique_values = sampling_values[sheet_name][column].split(',')
-                            synthetic_data[column] = np.random.choice(
-                                unique_values, size=num_synthetic_rows
-                            )
+                        # If the user has provided categorical values (comma-separated)
+                        if value is not None:
+                            unique_values = value.split(',')
+                            synthetic_data[column] = [np.random.choice(unique_values) for _ in range(num_synthetic_rows)]
                     elif data_type == "Datetime":
-                        # Generate datetime data if selected
-                        start_date = pd.to_datetime("2020-01-01")
-                        end_date = pd.to_datetime("2024-12-31")
-                        synthetic_data[column] = pd.to_datetime(
-                            np.random.choice(
-                                pd.date_range(start=start_date, end=end_date, freq="D"),
-                                size=num_synthetic_rows
-                            )
-                        )
+                        # If the user has provided a datetime value (single value or a range)
+                        if value is not None:
+                            synthetic_data[column] = [pd.to_datetime(value)] * num_synthetic_rows
+
                 elif pd.api.types.is_numeric_dtype(data_without_header[column]):  # Numeric columns
-                    synthetic_data[column] = np.random.normal(
-                        loc=data_without_header[column].mean(),
-                        scale=data_without_header[column].std(),
-                        size=num_synthetic_rows,
-                    )
+                    value = sampling_values[sheet_name].get(column, None)
+                    if value is not None:
+                        min_value, max_value = numeric_ranges[sheet_name].get(column, (0, 100))
+                        synthetic_data[column] = np.random.uniform(min_value, max_value, num_synthetic_rows).tolist()
                 elif (
                     isinstance(data_without_header[column].dtype, pd.CategoricalDtype)
                     or data_without_header[column].dtype == "object"
                 ):  # Categorical or string columns
-                    unique_values = data_without_header[column].dropna().unique()
-                    if len(unique_values) > 0:
-                        probabilities = (
-                            data_without_header[column]
-                            .dropna()
-                            .value_counts(normalize=True)
-                            .reindex(unique_values, fill_value=0)
-                            .values
-                        )
-                        synthetic_data[column] = np.random.choice(
-                            unique_values, size=num_synthetic_rows, p=probabilities
-                        )
-                    else:
-                        synthetic_data[column] = [None] * num_synthetic_rows
+                    value = sampling_values[sheet_name].get(column, None)
+                    if value is not None:
+                        unique_values = value.split(',')
+                        synthetic_data[column] = [np.random.choice(unique_values) for _ in range(num_synthetic_rows)]
                 elif pd.api.types.is_datetime64_any_dtype(data_without_header[column]):  # Datetime columns
-                    if not data_without_header[column].isna().all():
-                        synthetic_data[column] = pd.to_datetime(
-                            np.random.choice(
-                                pd.date_range(
-                                    start=data_without_header[column].min(),
-                                    end=data_without_header[column].max(),
-                                ),
-                                size=num_synthetic_rows,
-                            )
-                        )
-                    else:
-                        synthetic_data[column] = [None] * num_synthetic_rows
+                    value = sampling_values[sheet_name].get(column, None)
+                    if value is not None:
+                        synthetic_data[column] = [pd.to_datetime(value)] * num_synthetic_rows
                 else:
                     synthetic_data[column] = [None] * num_synthetic_rows  # Unsupported columns
 
