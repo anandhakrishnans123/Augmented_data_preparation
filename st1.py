@@ -21,7 +21,8 @@ if uploaded_file is not None:
     rows_to_generate = {}
     columns_for_sampling = {}  # Store multiple columns for sampling
     sampling_values = {}  # Store sampling values for columns
-    
+    data_type_choices = {}  # Store data type choices for columns
+
     if selected_sheets:
         st.markdown("### Specify the number of synthetic rows for each sheet:")
         for sheet in selected_sheets:
@@ -47,13 +48,23 @@ if uploaded_file is not None:
 
             # Allow user to input a value for each selected column for sampling
             column_values = {}
+            column_data_types = {}
             for col in selected_columns:
                 value = st.text_input(
                     f"Enter the sampling value for column '{col}' in sheet '{sheet}'",
                     key=f"value_{sheet}_{col}"
                 )
                 column_values[col] = value
+                
+                # Allow user to select the data type for each column
+                data_type = st.selectbox(
+                    f"Select the data type for column '{col}' in sheet '{sheet}'",
+                    options=["Numeric", "Categorical", "Datetime"],
+                    key=f"data_type_{sheet}_{col}"
+                )
+                column_data_types[col] = data_type
             sampling_values[sheet] = column_values
+            data_type_choices[sheet] = column_data_types
 
             # Add separation between each sheet's settings
             st.markdown("---")  # Adds a horizontal line
@@ -79,7 +90,31 @@ if uploaded_file is not None:
             for column in data_without_header.columns:
                 if column in columns_for_sampling[sheet_name]:
                     # Use the sampling value for the selected column
-                    synthetic_data[column] = [sampling_values[sheet_name][column]] * num_synthetic_rows
+                    data_type = data_type_choices[sheet_name].get(column, "Numeric")
+                    if data_type == "Numeric":
+                        # Generate numeric data if selected
+                        synthetic_data[column] = np.random.normal(
+                            loc=0,  # You could use the column's mean if desired
+                            scale=1,  # You could use the column's standard deviation
+                            size=num_synthetic_rows,
+                        )
+                    elif data_type == "Categorical":
+                        # Generate categorical data if selected
+                        if column in sampling_values[sheet_name]:
+                            unique_values = sampling_values[sheet_name][column].split(',')
+                            synthetic_data[column] = np.random.choice(
+                                unique_values, size=num_synthetic_rows
+                            )
+                    elif data_type == "Datetime":
+                        # Generate datetime data if selected
+                        start_date = pd.to_datetime("2020-01-01")
+                        end_date = pd.to_datetime("2024-12-31")
+                        synthetic_data[column] = pd.to_datetime(
+                            np.random.choice(
+                                pd.date_range(start=start_date, end=end_date, freq="D"),
+                                size=num_synthetic_rows
+                            )
+                        )
                 elif pd.api.types.is_numeric_dtype(data_without_header[column]):  # Numeric columns
                     synthetic_data[column] = np.random.normal(
                         loc=data_without_header[column].mean(),
