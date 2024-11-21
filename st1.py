@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from io import BytesIO
-from scipy import stats
 
 # Streamlit UI for synthetic data generation
 st.title("Synthetic Data Generator")
@@ -131,24 +130,36 @@ if uploaded_file is not None:
                     # Handle unselected columns based on their existing distribution
                     if pd.api.types.is_numeric_dtype(data_without_header[column]):
                         # Numeric column: generate based on mean and std deviation of the column
-                        mean = data_without_header[column].mean()
-                        std_dev = data_without_header[column].std()
-                        synthetic_data[column] = np.random.normal(mean, std_dev, num_synthetic_rows).tolist()
+                        column_data = data_without_header[column].dropna()  # Drop NaN values
+                        if len(column_data) > 0:
+                            mean = column_data.mean()
+                            std_dev = column_data.std()
+                            synthetic_data[column] = np.random.normal(mean, std_dev, num_synthetic_rows).tolist()
+                        else:
+                            synthetic_data[column] = [0] * num_synthetic_rows  # Default to 0 if the column is empty
 
                     elif pd.api.types.is_categorical_dtype(data_without_header[column]) or data_without_header[column].dtype == "object":
                         # Categorical column: generate based on frequency of categories
-                        category_counts = data_without_header[column].value_counts(normalize=True)
-                        categories = category_counts.index.tolist()
-                        probabilities = category_counts.values.tolist()
-                        synthetic_data[column] = np.random.choice(categories, num_synthetic_rows, p=probabilities).tolist()
+                        column_data = data_without_header[column].dropna()  # Drop NaN values
+                        if len(column_data) > 0:
+                            category_counts = column_data.value_counts(normalize=True)
+                            categories = category_counts.index.tolist()
+                            probabilities = category_counts.values.tolist()
+                            synthetic_data[column] = np.random.choice(categories, num_synthetic_rows, p=probabilities).tolist()
+                        else:
+                            synthetic_data[column] = ["Unknown"] * num_synthetic_rows  # Default if column is empty
 
                     elif pd.api.types.is_datetime64_any_dtype(data_without_header[column]):
                         # Datetime column: generate based on the range of existing dates
-                        min_date = data_without_header[column].min()
-                        max_date = data_without_header[column].max()
-                        time_range = (max_date - min_date).days
-                        random_days = np.random.randint(0, time_range, num_synthetic_rows)
-                        synthetic_data[column] = [min_date + pd.Timedelta(days=days) for days in random_days]
+                        column_data = data_without_header[column].dropna()  # Drop NaN values
+                        if len(column_data) > 0:
+                            min_date = column_data.min()
+                            max_date = column_data.max()
+                            time_range = (max_date - min_date).days
+                            random_days = np.random.randint(0, time_range, num_synthetic_rows)
+                            synthetic_data[column] = [min_date + pd.Timedelta(days=days) for days in random_days]
+                        else:
+                            synthetic_data[column] = [pd.to_datetime("2024-01-01")] * num_synthetic_rows  # Default date if column is empty
 
             # Convert synthetic data to DataFrame
             synthetic_data_df = pd.DataFrame(synthetic_data)
