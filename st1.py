@@ -197,4 +197,4 @@ if uploaded_file is not None:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
 
-        st.success("Augmented data has been saved and is ready for
+        st.success("Augmented data has been saved and is ready for download.")
