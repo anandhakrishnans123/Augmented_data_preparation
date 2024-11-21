@@ -25,7 +25,7 @@ if uploaded_file is not None:
     numeric_ranges = {}  # Store numeric range for columns
 
     if selected_sheets:
-        
+        st.markdown("### Specify the number of synthetic rows for each sheet:")
         for sheet in selected_sheets:
             # Display small title for each sheet
             st.subheader(f"Settings for Sheet: {sheet}")
@@ -45,7 +45,6 @@ if uploaded_file is not None:
                 columns,
                 key=f"columns_{sheet}"
             )
-            st.markdown("---")
             columns_for_sampling[sheet] = selected_columns
 
             # Allow user to input a value for each selected column for sampling
