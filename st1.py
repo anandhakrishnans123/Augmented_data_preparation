@@ -15,7 +15,7 @@ if uploaded_file is not None:
     sheets = excel_data.sheet_names
 
     # Multi-select box for selecting sheets
-    
+    selected_sheets = st.multiselect("Select sheets to process", sheets)
 
     # Dictionary to store the number of rows for each selected sheet
     rows_to_generate = {}
