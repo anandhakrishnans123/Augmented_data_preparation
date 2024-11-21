@@ -85,7 +85,7 @@ if uploaded_file is not None:
             numeric_ranges[sheet] = column_numeric_ranges
 
             # Add separation between each sheet's settings
-            st.markdown("---")  # Adds a horizontal line
+            st.markdown("___")  # Adds a horizontal line for separation
 
     if st.button("Generate and Save Augmented Data"):
         # Dictionary to hold the augmented data for all sheets
@@ -124,7 +124,7 @@ if uploaded_file is not None:
                     elif data_type == "Datetime":
                         # If the user has provided a datetime value (single value or a range)
                         if value is not None:
-                            synthetic_data[column] = [pd.to_datetime(value).date()] * num_synthetic_rows  # Remove the time
+                            synthetic_data[column] = [pd.to_datetime(value)] * num_synthetic_rows
 
                 else:
                     # Handle unselected columns based on their existing distribution
@@ -159,15 +159,10 @@ if uploaded_file is not None:
                             random_days = np.random.randint(0, time_range, num_synthetic_rows)
                             synthetic_data[column] = [min_date + pd.Timedelta(days=days) for days in random_days]
                         else:
-                            synthetic_data[column] = [pd.to_datetime("2024-01-01").date()] * num_synthetic_rows  # Default date if column is empty
+                            synthetic_data[column] = [pd.to_datetime("2024-01-01")] * num_synthetic_rows  # Default date if column is empty
 
             # Convert synthetic data to DataFrame
             synthetic_data_df = pd.DataFrame(synthetic_data)
-
-            # Convert all datetime columns to just the date (remove timestamp)
-            for col in synthetic_data_df.columns:
-                if pd.api.types.is_datetime64_any_dtype(synthetic_data_df[col]):
-                    synthetic_data_df[col] = synthetic_data_df[col].dt.date  # Strip the time part
 
             # Combine original and synthetic data
             augmented_data = pd.concat([original_data, synthetic_data_df], ignore_index=True)
@@ -178,7 +173,7 @@ if uploaded_file is not None:
             st.write(augmented_data.head())  # Display the first few rows of augmented data
 
             # Add a line break after each sheet's preview
-            st.markdown("---")
+            st.markdown("___")  # Adds a horizontal line
 
         # Save all sheets with selected sheets overwritten by augmented data
         output = BytesIO()
