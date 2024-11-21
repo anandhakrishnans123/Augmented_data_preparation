@@ -25,6 +25,9 @@ if uploaded_file is not None:
     if selected_sheets:
         st.markdown("### Specify the number of synthetic rows for each sheet:")
         for sheet in selected_sheets:
+            # Display small title for each sheet
+            st.subheader(f"Settings for Sheet: {sheet}")
+
             rows_to_generate[sheet] = st.number_input(
                 f"Number of synthetic rows for sheet '{sheet}'",
                 min_value=1,
@@ -57,6 +60,9 @@ if uploaded_file is not None:
         all_augmented_data = {}
 
         for sheet_name in selected_sheets:
+            # Display small title for sheet data processing
+            st.subheader(f"Processing Data for Sheet: {sheet_name}")
+
             # Load data from the selected sheet
             original_data = pd.read_excel(uploaded_file, sheet_name=sheet_name)
 
