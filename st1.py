@@ -85,7 +85,7 @@ if uploaded_file is not None:
 
                 elif data_type == "Date":
                     value = st.text_input(
-                        f"Enter the date value for column '{col}' in sheet '{sheet}' (e.g., 2024-01-01)",
+                        f"Enter the comma-separated date values for column '{col}' in sheet '{sheet}' (e.g., 2024-01-01, 2024-01-02)",
                         key=f"value_{sheet}_{col}",
                     )
                     column_values[col] = value
@@ -129,8 +129,8 @@ if uploaded_file is not None:
                     elif data_type == "Date":
                         if value is not None:
                             try:
-                                date_value = pd.to_datetime(value)
-                                synthetic_data[column] = [date_value] * num_synthetic_rows
+                                date_values = [pd.to_datetime(date.strip()) for date in value.split(',')]
+                                synthetic_data[column] = [np.random.choice(date_values) for _ in range(num_synthetic_rows)]
                             except ValueError:
                                 st.error(f"Invalid date format for column '{column}' in sheet '{sheet_name}'.")
                                 synthetic_data[column] = [pd.to_datetime("2024-01-01")] * num_synthetic_rows
