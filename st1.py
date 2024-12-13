@@ -1,193 +1,112 @@
 import streamlit as st
+import google.generativeai as genai
 import pandas as pd
-import numpy as np
-from io import BytesIO
+from io import StringIO
+from PIL import Image
+import fitz  # PyMuPDF to handle PDF
+import io
 
-# Streamlit UI for synthetic data generation
-st.title("Synthetic Data Generator")
+st.title("Image and PDF to CSV Converter")
 
-# Upload the Excel file
-uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
+# Input for API key
+api_key = "AIzaSyBA3sUF2AFbcYwrsuY7zVu38dB-pOA-v9c"
 
-if uploaded_file is not None:
-    # Load all sheets from the Excel file
-    excel_data = pd.ExcelFile(uploaded_file)
-    sheets = excel_data.sheet_names
+if api_key:
+    # Configure the Gemini Pro API
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("gemini-1.5-flash")
 
-    # Multi-select box for selecting sheets
-    selected_sheets = st.multiselect("Select sheets to process", sheets)
+    # Upload an image or PDF
+    uploaded_file = st.file_uploader("Upload an image or PDF", type=["png", "jpg", "jpeg", "pdf"])
 
-    # Initialize dictionaries for user inputs and configurations
-    rows_to_generate = {}
-    columns_for_sampling = {}
-    sampling_values = {}
-    data_type_choices = {}
-    numeric_ranges = {}
+    if uploaded_file is not None:
+        file_type = uploaded_file.type
+        
+        # If the uploaded file is an image
+        if file_type in ["image/png", "image/jpeg", "image/jpg"]:
+            img = Image.open(uploaded_file)
+            
+            # Initialize session state to track image rotation
+            if 'rotation_angle' not in st.session_state:
+                st.session_state.rotation_angle = 0
+            
+            # Button to rotate the image by 90 degrees
+            if st.button("Rotate Image 90°"):
+                st.session_state.rotation_angle += 90
+                st.session_state.rotation_angle %= 360  # Ensure angle stays within 0-359 degrees
+            
+            # Rotate the image and expand it to ensure full dimensions are kept
+            rotated_img = img.rotate(st.session_state.rotation_angle, expand=True)
+            st.image(rotated_img, caption='Uploaded Image (Rotated)', use_column_width=True)
 
-    if selected_sheets:
-        for sheet in selected_sheets:
-            st.markdown("---")
-            # Display settings for each sheet
-            st.subheader(f"Settings for Sheet: {sheet}")
+            # Generate CSV from image
+            if st.button("Convert Image to CSV"):
+                try:
+                    # Create a prompt for the model
+                    prompt = "Extract data from the uploaded image, extract the data including handwritten text, numbers and convert it to a CSV format. If possible, identify the type of data (e.g., names, dates, numbers) and structure the CSV accordingly. Also only give out the output table no other specific information is required"
+                    response = model.generate_content([prompt, rotated_img])  # Assuming this format works with your API
+                    csv_result = response.text
 
-            rows_to_generate[sheet] = st.number_input(
-                f"Number of synthetic rows for sheet '{sheet}'",
-                min_value=1,
-                step=1,
-                value=10,
-                key=f"rows_{sheet}",
-            )
+                    # Use StringIO to simulate a file-like object for pandas
+                    data_io = StringIO(csv_result)
 
-            # Allow user to select columns
-            columns = pd.read_excel(uploaded_file, sheet_name=sheet).columns
-            selected_columns = st.multiselect(
-                f"Select columns to sample data for sheet '{sheet}'",
-                columns,
-                key=f"columns_{sheet}",
-            )
-            columns_for_sampling[sheet] = selected_columns
+                    # Read the data into a DataFrame
+                    df = pd.read_csv(data_io)
 
-            column_values = {}
-            column_data_types = {}
-            column_numeric_ranges = {}
-            for col in selected_columns:
-                st.subheader(f"Column settings for: {col}")
+                    # Save the DataFrame to a CSV file
+                    csv_file_path = 'csv_output.csv'
+                    df.to_csv(csv_file_path, index=False)
 
-                # Data type selection
-                data_type = st.selectbox(
-                    f"Select the data type for column '{col}' in sheet '{sheet}'",
-                    options=["Select", "Numerical", "Categorical", "Date"],
-                    index=0,
-                    key=f"data_type_{sheet}_{col}",
-                )
-                column_data_types[col] = data_type
+                    st.success(f"CSV file saved as {csv_file_path}")
+                    st.write(df)  # Display the DataFrame
 
-                # Data type-specific inputs
-                if data_type == "Numerical":
-                    min_value = st.number_input(
-                        f"Enter the minimum value for column '{col}' in sheet '{sheet}'",
-                        value=0.0,
-                        key=f"min_{sheet}_{col}",
-                    )
-                    max_value = st.number_input(
-                        f"Enter the maximum value for column '{col}' in sheet '{sheet}'",
-                        value=100.0,
-                        key=f"max_{sheet}_{col}",
-                    )
-                    column_numeric_ranges[col] = (min_value, max_value)
+                    # Provide a download link
+                    with open(csv_file_path, "rb") as f:
+                        st.download_button("Download CSV", f, file_name=csv_file_path)
 
-                elif data_type == "Categorical":
-                    value = st.text_input(
-                        f"Enter the sampling values (comma-separated) for column '{col}' in sheet '{sheet}'",
-                        key=f"value_{sheet}_{col}",
-                    )
-                    column_values[col] = value
+                except Exception as e:
+                    st.error(f"An error occurred: {e}")
 
-                elif data_type == "Date":
-                    value = st.text_input(
-                        f"Enter the comma-separated date values for column '{col}' in sheet '{sheet}' (e.g., 2024-01-01, 2024-01-02)",
-                        key=f"value_{sheet}_{col}",
-                    )
-                    column_values[col] = value
+        # If the uploaded file is a PDF
+        elif file_type == "application/pdf":
+            # Read PDF file using PyMuPDF
+            pdf_document = fitz.open(uploaded_file)
+            pdf_text = ""
 
-                st.markdown("---")
+            # Extract text from all pages of the PDF
+            for page_num in range(pdf_document.page_count):
+                page = pdf_document.load_page(page_num)
+                pdf_text += page.get_text()
 
-            sampling_values[sheet] = column_values
-            data_type_choices[sheet] = column_data_types
-            numeric_ranges[sheet] = column_numeric_ranges
+            # Display the extracted text
+            st.text_area("Extracted Text", pdf_text, height=300)
 
-    if st.button("Generate and Save Augmented Data"):
-        # Dictionary to store augmented data for all sheets
-        all_augmented_data = {}
+            # Generate CSV from PDF text
+            if st.button("Convert PDF to CSV"):
+                try:
+                    # Create a prompt for the model
+                    prompt = f"Extract data from the uploaded PDF text: {pdf_text}. Identify tables or structured data and convert it into CSV format. Do not include any other specific information."
+                    response = model.generate_content([prompt])  # Assuming this format works with your API
+                    csv_result = response.text
 
-        for sheet_name in selected_sheets:
-            st.subheader(f"Processing Data for Sheet: {sheet_name}")
+                    # Use StringIO to simulate a file-like object for pandas
+                    data_io = StringIO(csv_result)
 
-            original_data = pd.read_excel(uploaded_file, sheet_name=sheet_name)
-            data_without_header = original_data[1:]
+                    # Read the data into a DataFrame
+                    df = pd.read_csv(data_io)
 
-            synthetic_data = {}
-            num_synthetic_rows = rows_to_generate[sheet_name]
+                    # Save the DataFrame to a CSV file
+                    csv_file_path = 'csv_output.csv'
+                    df.to_csv(csv_file_path, index=False)
 
-            for column in data_without_header.columns:
-                if column in columns_for_sampling[sheet_name]:
-                    data_type = data_type_choices[sheet_name].get(column, "Select")
-                    value = sampling_values[sheet_name].get(column, None)
+                    st.success(f"CSV file saved as {csv_file_path}")
+                    st.write(df)  # Display the DataFrame
 
-                    if data_type == "Numerical":
-                        min_value, max_value = numeric_ranges[sheet_name].get(column, (0, 100))
-                        synthetic_data[column] = np.random.uniform(min_value, max_value, num_synthetic_rows).tolist()
+                    # Provide a download link
+                    with open(csv_file_path, "rb") as f:
+                        st.download_button("Download CSV", f, file_name=csv_file_path)
 
-                    elif data_type == "Categorical":
-                        if value is not None:
-                            unique_values = [val.strip() for val in value.split(',') if val.strip()]
-                            if unique_values:
-                                synthetic_data[column] = [np.random.choice(unique_values) for _ in range(num_synthetic_rows)]
-                            else:
-                                synthetic_data[column] = ["Undefined"] * num_synthetic_rows
-
-                    elif data_type == "Date":
-                        if value is not None:
-                            try:
-                                date_values = [pd.to_datetime(date.strip()) for date in value.split(',')]
-                                synthetic_data[column] = [np.random.choice(date_values) for _ in range(num_synthetic_rows)]
-                            except ValueError:
-                                st.error(f"Invalid date format for column '{column}' in sheet '{sheet_name}'.")
-                                synthetic_data[column] = [pd.to_datetime("2024-01-01")] * num_synthetic_rows
-
-                else:
-                    if pd.api.types.is_numeric_dtype(data_without_header[column]):
-                        column_data = data_without_header[column].dropna()
-                        if len(column_data) > 0:
-                            mean = column_data.mean()
-                            std_dev = column_data.std()
-                            synthetic_data[column] = np.random.normal(mean, std_dev, num_synthetic_rows).tolist()
-                        else:
-                            synthetic_data[column] = [0] * num_synthetic_rows
-
-                    elif pd.api.types.is_categorical_dtype(data_without_header[column]) or data_without_header[column].dtype == "object":
-                        column_data = data_without_header[column].dropna()
-                        if len(column_data) > 0:
-                            category_counts = column_data.value_counts(normalize=True)
-                            categories = category_counts.index.tolist()
-                            probabilities = category_counts.values.tolist()
-                            synthetic_data[column] = np.random.choice(categories, num_synthetic_rows, p=probabilities).tolist()
-                        else:
-                            synthetic_data[column] = [None] * num_synthetic_rows
-
-                    elif pd.api.types.is_datetime64_any_dtype(data_without_header[column]):
-                        column_data = data_without_header[column].dropna()
-                        if len(column_data) > 0:
-                            min_date = column_data.min()
-                            max_date = column_data.max()
-                            time_range = (max_date - min_date).days
-                            random_days = np.random.randint(0, time_range, num_synthetic_rows)
-                            synthetic_data[column] = [min_date + pd.Timedelta(days=days) for days in random_days]
-                        else:
-                            synthetic_data[column] = [pd.to_datetime("2024-01-01")] * num_synthetic_rows
-
-            synthetic_data_df = pd.DataFrame(synthetic_data)
-            augmented_data = pd.concat([original_data, synthetic_data_df], ignore_index=True)
-            all_augmented_data[sheet_name] = augmented_data
-
-            st.markdown(f"### Augmented Data for Sheet: {sheet_name}")
-            st.write(augmented_data.head())
-            st.markdown("---")
-
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine="openpyxl") as writer:
-            for sheet in sheets:
-                if sheet in all_augmented_data:
-                    all_augmented_data[sheet].to_excel(writer, index=False, sheet_name=sheet)
-                else:
-                    pd.read_excel(uploaded_file, sheet_name=sheet).to_excel(writer, index=False, sheet_name=sheet)
-
-        output.seek(0)
-        st.download_button(
-            label="Download File with Augmented Sheets",
-            data=output,
-            file_name="augmented_data.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-
-        st.success("Augmented data has been saved and is ready for download!")
+                except Exception as e:
+                    st.error(f"An error occurred: {e}")
+else:
+    st.warning("Please enter your API key to proceed.")
