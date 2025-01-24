@@ -84,11 +84,7 @@ if uploaded_file is not None:
                     column_values[col] = value
 
                 elif data_type == "Date":
-                    value = st.text_input(
-                        f"Enter the comma-separated date values for column '{col}' in sheet '{sheet}' (e.g., 2024-01-01, 2024-01-02)",
-                        key=f"value_{sheet}_{col}",
-                    )
-                    column_values[col] = value
+                    st.write(f"Dates will be sampled from existing values in column '{col}' in sheet '{sheet}' if available.")
 
                 st.markdown("---")
 
@@ -112,13 +108,13 @@ if uploaded_file is not None:
             for column in data_without_header.columns:
                 if column in columns_for_sampling[sheet_name]:
                     data_type = data_type_choices[sheet_name].get(column, "Select")
-                    value = sampling_values[sheet_name].get(column, None)
 
                     if data_type == "Numerical":
                         min_value, max_value = numeric_ranges[sheet_name].get(column, (0, 100))
                         synthetic_data[column] = np.random.uniform(min_value, max_value, num_synthetic_rows).tolist()
 
                     elif data_type == "Categorical":
+                        value = sampling_values[sheet_name].get(column, None)
                         if value is not None:
                             unique_values = [val.strip() for val in value.split(',') if val.strip()]
                             if unique_values:
@@ -127,13 +123,12 @@ if uploaded_file is not None:
                                 synthetic_data[column] = ["Undefined"] * num_synthetic_rows
 
                     elif data_type == "Date":
-                        if value is not None:
-                            try:
-                                date_values = [pd.to_datetime(date.strip()) for date in value.split(',')]
-                                synthetic_data[column] = [np.random.choice(date_values) for _ in range(num_synthetic_rows)]
-                            except ValueError:
-                                st.error(f"Invalid date format for column '{column}' in sheet '{sheet_name}'.")
-                                synthetic_data[column] = [pd.to_datetime("2024-01-01")] * num_synthetic_rows
+                        column_data = data_without_header[column].dropna()
+                        if len(column_data) > 0:
+                            unique_dates = column_data.unique()
+                            synthetic_data[column] = [np.random.choice(unique_dates) for _ in range(num_synthetic_rows)]
+                        else:
+                            synthetic_data[column] = [pd.to_datetime("2024-01-01")] * num_synthetic_rows
 
                 else:
                     if pd.api.types.is_numeric_dtype(data_without_header[column]):
@@ -158,11 +153,8 @@ if uploaded_file is not None:
                     elif pd.api.types.is_datetime64_any_dtype(data_without_header[column]):
                         column_data = data_without_header[column].dropna()
                         if len(column_data) > 0:
-                            min_date = column_data.min()
-                            max_date = column_data.max()
-                            time_range = (max_date - min_date).days
-                            random_days = np.random.randint(0, time_range, num_synthetic_rows)
-                            synthetic_data[column] = [min_date + pd.Timedelta(days=days) for days in random_days]
+                            unique_dates = column_data.unique()
+                            synthetic_data[column] = [np.random.choice(unique_dates) for _ in range(num_synthetic_rows)]
                         else:
                             synthetic_data[column] = [pd.to_datetime("2024-01-01")] * num_synthetic_rows
 
